@@ -6,7 +6,7 @@
         <template v-if="config">
             <div v-if="!management && config.settings.showStats" class="stats">
                 <div class="shadow-box"><span>{{ $t('runningContainers') }}</span><strong>{{ runningContainers }}</strong></div>
-                <div class="shadow-box"><span>{{ $t('onlineServices') }}</span><strong>{{ onlineServices }}</strong><small>{{ $t('stackStatusHint') }}</small></div>
+                <div class="shadow-box"><span>{{ $t('respondingServices') }}</span><strong>{{ checkedCount ? onlineServices : '—' }}</strong><small>{{ $t('connectivityHint') }}</small></div>
                 <div class="shadow-box"><span>{{ $t('shortcuts') }}</span><strong>{{ visibleLinks.length }}</strong></div>
             </div>
             <template v-if="management">
@@ -27,6 +27,7 @@
             <section v-for="group in sortedGroups" :key="group.id" class="group" :class="{ disabled: !group.enabled }" @dragover.prevent @drop.prevent="drop(group.id)">
                 <div class="group-heading">
                     <h2>{{ group.name === 'localServices' ? $t('localServices') : group.name }}</h2>
+                    <button v-if="!management" class="btn btn-sm btn-normal" :disabled="checking" @click="checkConnectivity">{{ $t(checking ? 'checkingConnectivity' : 'checkConnectivity') }}</button>
                     <div v-if="management" class="actions">
                         <button class="btn btn-sm btn-normal" @click="moveGroup(group, -1)">↑</button><button class="btn btn-sm btn-normal" @click="moveGroup(group, 1)">↓</button>
                         <button class="btn btn-sm btn-normal" @click="renameGroup(group)">{{ $t('Edit') }}</button>
@@ -42,6 +43,7 @@
                             <strong>{{ link.name }}</strong>
                             <small v-if="config.settings.showUrls">{{ displayUrl(link.url) }}</small>
                             <small v-if="link.description">{{ link.description }}</small>
+                            <small v-if="connectivity[link.url]" :class="{ reachable: connectivity[link.url] === 'reachable' }">{{ $t(connectivity[link.url] === 'reachable' ? 'reachable' : 'notConfirmed') }}</small>
                             <small v-if="link.source === 'stack'">{{ link.endpoint || 'local' }} · {{ $t(link.status === 'online' ? 'running' : link.status === 'offline' ? 'offline' : 'unknown') }}</small>
                         </a>
                         <div v-if="management && link.source !== 'builtin'" class="card-actions">
@@ -88,6 +90,8 @@ export default {
             showSettings: false,
             dragId: null,
             stackData: {},
+            connectivity: {},
+            checking: false,
             generation: 0,
             icons: [ "link", "server", "router", "database", "video", "chart", "globe", "terminal", "folder", "settings", "docker" ] };
     },
@@ -122,7 +126,10 @@ export default {
             return this.allLinks.filter(l => groups.has(l.groupId) && l.enabled !== false && !l.hidden && (l.source !== "stack" || (this.config.settings.showStackUrls && (this.config.settings.showOffline || l.status !== "offline"))));
         },
         onlineServices() {
-            return this.visibleLinks.filter(l => l.source === "stack" && l.status === "online").length;
+            return this.visibleLinks.filter(l => this.connectivity[l.url] === "reachable").length;
+        },
+        checkedCount() {
+            return this.visibleLinks.filter(l => this.connectivity[l.url]).length;
         },
         runningContainers() {
             return Object.values(this.stackData).reduce((sum, item) => sum + (item.runningContainers || 0), 0);
@@ -149,6 +156,26 @@ export default {
         this.$root.getSocket().off("dashboard:changed", this.load);
     },
     methods: {
+        async checkConnectivity() {
+            this.checking = true;
+            const urls = [ ...new Set(this.visibleLinks.map(link => link.url)) ];
+            await Promise.all(urls.map(async url => {
+                const controller = new AbortController();
+                const timer = setTimeout(() => controller.abort(), 5000);
+                try {
+                    await fetch(url, { mode: "no-cors",
+                        credentials: "omit",
+                        cache: "no-store",
+                        signal: controller.signal });
+                    this.connectivity[url] = "reachable";
+                } catch {
+                    this.connectivity[url] = "unknown";
+                } finally {
+                    clearTimeout(timer);
+                }
+            }));
+            this.checking = false;
+        },
         newId() {
             const bytes = new Uint8Array(16);
             crypto.getRandomValues(bytes);
@@ -371,6 +398,7 @@ export default {
 .stats, .cards { display: grid; gap: 1rem; }
 .stats { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin: 1.5rem 0 2rem; }
 .stats > div { padding: 1.4rem; display: flex; flex-direction: column; gap: .4rem; }
+.reachable { color: #40c981; opacity: 1 !important; }
 .stats strong { font-size: 2rem; }.stats small { opacity: .65; }
 .group { margin: 2rem 0; }.group-heading { display: flex; justify-content: space-between; align-items: center; gap: .5rem; flex-wrap: wrap; margin-bottom: 1rem; }.group-heading h2 { margin: 0; }
 .service-card { display: flex; width: 100%; min-height: 170px; padding: 1.2rem; flex-direction: column; justify-content: center; align-items: center; gap: .45rem; color: inherit; text-decoration: none; transition: transform .15s; overflow: hidden; }.service-card:hover { transform: translateY(-3px); color: inherit; }.service-card strong, .service-card small { max-width: 100%; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }.service-card small { opacity: .65; }.service-icon { font-size: 2rem; }.add-card { border: 1px dashed #888; background: transparent; color: inherit; }.disabled { opacity: .5; }.toolbar, .actions, .card-actions { display: flex; gap: .4rem; flex-wrap: wrap; }.toolbar .form-control { max-width: 260px; }.card-actions { margin-top: .4rem; }.settings { padding: 1.5rem; margin-top: 1rem; }.setting { display: inline-block; margin: .5rem 1rem .5rem 0; }.dialog-backdrop { position: fixed; z-index: 2000; inset: 0; background: #0009; display: flex; justify-content: center; align-items: center; padding: 1rem; }.dialog { width: min(100%, 500px); padding: 1.5rem; background: var(--bs-body-bg); max-height: 95vh; overflow: auto; }.dialog label { display: block; margin: .8rem 0; }
