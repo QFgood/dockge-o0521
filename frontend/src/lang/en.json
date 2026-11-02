@@ -192,5 +192,11 @@
     "retry": "Retry",
     "running": "Running",
     "offline": "Offline",
-    "unknown": "Unknown"
+    "unknown": "Unknown",
+    "checkConnectivity": "Check connectivity",
+    "checkingConnectivity": "Checking…",
+    "reachable": "Responded",
+    "notConfirmed": "Not confirmed",
+    "connectivityHint": "Browser request; a response may be an error or login page. Failures may be blocked by the browser.",
+    "respondingServices": "Responding services"
 }

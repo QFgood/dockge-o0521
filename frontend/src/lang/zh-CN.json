@@ -172,5 +172,11 @@
     "retry": "重试",
     "running": "运行中",
     "offline": "离线",
-    "unknown": "未知"
+    "unknown": "未知",
+    "checkConnectivity": "检测连通性",
+    "checkingConnectivity": "检测中…",
+    "reachable": "有响应",
+    "notConfirmed": "未能确认",
+    "connectivityHint": "由浏览器发起请求；有响应也可能是错误或登录页面，失败可能受浏览器限制。",
+    "respondingServices": "有响应的服务"
 }
