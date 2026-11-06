@@ -55,10 +55,6 @@
                 </div>
 
                 <button v-if="isEditMode && !isAdd" class="btn btn-normal" :disabled="processing" @click="discardStack">{{ $t("discardStack") }}</button>
-                <button v-if="!isEditMode" class="btn btn-danger" :disabled="processing" @click="showDeleteDialog = !showDeleteDialog">
-                    <font-awesome-icon icon="trash" class="me-1" />
-                    {{ $t("deleteStack") }}
-                </button>
             </div>
 
             <!-- URLs -->
@@ -236,11 +232,6 @@
             <div v-if="!stack.isManagedByDockge && !processing">
                 {{ $t("stackNotManagedByDockgeMsg") }}
             </div>
-
-            <!-- Delete Dialog -->
-            <BModal v-model="showDeleteDialog" :cancelTitle="$t('cancel')" :okTitle="$t('deleteStack')" okVariant="danger" @ok="deleteDialog">
-                {{ $t("deleteStackMsg") }}
-            </BModal>
         </div>
     </transition>
 </template>
@@ -263,7 +254,6 @@ import {
     PROGRESS_TERMINAL_ROWS,
     RUNNING
 } from "../../../common/util-common";
-import { BModal } from "bootstrap-vue-next";
 import NetworkInput from "../components/NetworkInput.vue";
 import dotenv from "dotenv";
 import { ref } from "vue";
@@ -288,7 +278,6 @@ export default {
         NetworkInput,
         FontAwesomeIcon,
         CodeMirror,
-        BModal,
     },
     beforeRouteUpdate(to, from, next) {
         this.exitConfirm(next);
@@ -340,7 +329,6 @@ export default {
             dockerStats: {},
             isEditMode: false,
             submitted: false,
-            showDeleteDialog: false,
             newContainerName: "",
             stopServiceStatusTimeout: false,
             stopDockerStatsTimeout: false,
@@ -700,15 +688,6 @@ export default {
             this.$root.emitAgent(this.endpoint, "updateStack", this.stack.name, (res) => {
                 this.processing = false;
                 this.$root.toastRes(res);
-            });
-        },
-
-        deleteDialog() {
-            this.$root.emitAgent(this.endpoint, "deleteStack", this.stack.name, (res) => {
-                this.$root.toastRes(res);
-                if (res.ok) {
-                    this.$router.push("/");
-                }
             });
         },
 
